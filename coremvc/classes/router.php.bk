@@ -1,0 +1,101 @@
+<?php
+
+class CoreMVC_Router {
+
+    /** Default URI **/
+    const DEFAULT_URI = 'default';
+
+    /** Routes collection **/
+    protected static $routes = array();
+
+    /** The URI **/
+    protected $uri = self::DEFAULT_URI;
+
+    public function __construct($uri = '')
+    {
+        if (!empty($uri)) {
+            $this->uri = $uri;
+        }
+    }
+
+    /**
+     *  Map a URI to a controller and action. Extra parameters get passed to
+     *  the action in order.
+     */
+    public static function add($uri, $controller, $action)
+    {
+        if (empty($uri)) {
+            throw new UnexpectedValueException('URI is required to add a route.');
+        }
+        if (empty($controller)) {
+            throw new UnexpectedValueException('Controller is required to add a route.');
+        }
+        if (empty($action)) {
+            throw new UnexpectedValueException('Action is required to add a route.');
+        }
+
+        // clean URI and add regex delimitersi
+        // NOTE: route will not be case sensitive!
+        $uri = '^' . self::cleanUri($uri) . '^i';
+
+        // check if route already exists
+        if (array_key_exists($uri, self::$routes)) {
+            throw new LogicException('A route already exists for URI: '.$uri);
+        }
+
+        // add the route
+        self::$routes[$uri] = array(
+            'controller' => $controller,
+            'action' => $action
+        );
+    }
+
+    public function exec($uri)
+    {
+        // if URI is an empty string, attempt to execute the default route.
+        if (empty($uri)) {
+            $uri = self::DEFAULT_URI;
+        }
+
+        $matches = array();
+        $uri = self::cleanUri($uri);
+
+        foreach (self::$routes as $pattern => $route) {
+            if (0 < preg_match_all($pattern, $uri, $params)) {
+                $route['params'] = $params;
+                $matches[$pattern] = $route;
+            }            
+        }
+
+        $nummatches = count($matches);
+        if (0 == $nummatches) { 
+            throw new RuntimeException('Route not found: ' . $uri);
+        } elseif (1 < $nummatches) {
+            throw new RuntimeException('Multiple routes found for URI: ' . $uri . ', ' . var_dump($matches));
+        }
+
+        // now execute
+        $v = array_values($matches);
+        CoreMVC_Utils::debugArray($v);
+        $c = $v[0]['controller'];
+        $a = $v[0]['action'];
+        $cont = new $c;
+        $cont->$a();
+    }
+
+    /**
+     * Get the route for a given URI.
+     */
+    public function getRoute($uri)
+    {
+        if (empty($uri)) {
+            throw new UnexpectedValueException('URI cannot be empty.');
+        }
+
+        $matches = array();
+        $uri = self::cleanUri($uri);        
+
+
+    }
+
+}
